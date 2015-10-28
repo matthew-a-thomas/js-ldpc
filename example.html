@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<!-- We'll probably be using math.js in the near future
+		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/mathjs/2.4.0/math.min.js"></script>
+		-->
+		<script type="text/javascript" src="ldpc.js"></script>
+		<script type="text/javascript">
+		var ldpc = new LDPC({
+			numSymbols: 6,
+			overhead: 3,
+			modulo: 2,
+			mixing: 0.25,
+			randomSeed: Date.now()});
+		/*
+		 * .decode() takes an array of numbers numSymbols long. A negative
+		 * number means the symbol is missing (we're targeting Binary Erasure
+		 * Channels)
+		 */
+		console.log(ldpc.decode([-1, -1, 1, 1, 1, 1, 1, 1, 1]).decoded); // Should usually print "true"
+		console.log(ldpc.decode([-1, -1, -1, 1, 1, 1, 1, 1, 1]).decoded); // Should sometimes print "true"
+		console.log(ldpc.decode([-1, -1, -1, -1, 1, 1, 1, 1, 1]).decoded); // Should rarely/never print "true"
+		</script
+	</head>
+	<body>
+		View the developer's console
+	</body>
+</html>
