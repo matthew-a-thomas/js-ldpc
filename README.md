@@ -3,6 +3,8 @@ A JavaScript implementation of a Low-Density Parity-Check code.
 
 The goal of this project is to create an implementation of an LDPC (https://en.wikipedia.org/wiki/Low-density_parity-check_code) because an existing one doesn't seem readily available.
 
+Robert Gallager's original paper on the topic can be found here: http://www.rle.mit.edu/rgallager/documents/ldpc.pdf
+
 ##API
 These methods are planned:
 
@@ -26,4 +28,4 @@ if (result.decoded) {
   // result.result might have more positive numbers than you gave the decode function
 }
 ```
-`array` is an array of numbers that are less than `options.modulo`. Use negative numbers to indicate a missing symbol (we're targeting an erasure channel)
+`array` is an array `options.numSymbols + options.overhead` in length of numbers that are less than `options.modulo`. Use negative numbers to indicate a missing symbol (we're targeting an erasure channel)
