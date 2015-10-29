@@ -5,27 +5,39 @@ The goal of this project is to create an implementation of an LDPC (https://en.w
 
 Robert Gallager's original paper on the topic can be found here: http://www.rle.mit.edu/rgallager/documents/ldpc.pdf
 
-##API
-These methods are planned:
+##Browser support
+Currently this has only been tested in Chrome >= 46
+
+##Example
+See `example.html` for a working example
+
+##Documentation
 
 ###Constructor
 ```JavaScript
 var ldpc = new LDPC(options);
 ```
 `options` is an object that can have these properties:
-* `numSymbols` the number of symbols in an unencoded message
-* `overhead` the number of symbols to add for redundancy
-* `modulo` currently only base-2 is planned. Defaults to 2
-* `mixing` a parameter that tries to capture the essence of tuning a LDPC code. This affects how dense the parity-check matrix is among other things. Defaults to 10% (which is probably too low)
+* `n` the number of symbols in an encoded message
+* `k` the number of non-redundant symbols (number of symbols in unencoded message)
+* `modulo` currently only base-2 is working. Defaults to 2
 * `randomSeed` value to initialize the random number generator to. Defaults to `Date.now()`
+
+###Encoding
+```JavaScript
+var encoded = ldpc.encode(message);
+console.log(encoded.join()); // Prints the encoded message
+```
+`message` is an array `options.k` in length of numbers that are less than `options.modulo`
 
 ###Decoding
 ```JavaScript
-var result = ldpc.decode(array);
+var result = ldpc.decode(encoded);
 if (result.decoded) {
-  // result.result should have all-positive numbers
+  // result should have all-positive and non-null numbers
 } else {
-  // result.result might have more positive numbers than you gave the decode function
+  // result might have more positive numbers than you gave the decode function
+  // Also see result.result, which has all the encoded symbols including any additional which were deduced. Note that the first k symbols are the same as result
 }
 ```
-`array` is an array `options.numSymbols + options.overhead` in length of numbers that are less than `options.modulo`. Use negative numbers to indicate a missing symbol (we're targeting an erasure channel)
+`encoded` is an array `options.n` in length of numbers that are less than `options.modulo`. Use negative numbers or `null` to indicate a missing symbol (we're targeting an erasure channel)
