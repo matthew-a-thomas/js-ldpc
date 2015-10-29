@@ -1,26 +1,59 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<!-- We'll probably be using math.js in the near future
-		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/mathjs/2.4.0/math.min.js"></script>
-		-->
+		 <!-- https://github.com/sloisel/numeric/ -->
+		<script type="text/javascript" src="js/numeric-1.2.6.min.js"></script>
 		<script type="text/javascript" src="ldpc.js"></script>
 		<script type="text/javascript">
-		var ldpc = new LDPC({
-			numSymbols: 6,
-			overhead: 3,
-			modulo: 2,
-			mixing: 0.25,
-			randomSeed: Date.now()});
-		/*
-		 * .decode() takes an array of numbers numSymbols long. A negative
-		 * number means the symbol is missing (we're targeting Binary Erasure
-		 * Channels)
-		 */
-		console.log(ldpc.decode([-1, -1, 1, 1, 1, 1, 1, 1, 1]).decoded); // Should usually print "true"
-		console.log(ldpc.decode([-1, -1, -1, 1, 1, 1, 1, 1, 1]).decoded); // Should sometimes print "true"
-		console.log(ldpc.decode([-1, -1, -1, -1, 1, 1, 1, 1, 1]).decoded); // Should rarely/never print "true"
-		</script
+		// Override arrays' toString function for this test
+		Array.prototype.toString = function() {
+			return JSON.stringify(this);
+		};
+
+		// Run through a series of tests. Each test increases n
+		for (var test = 0; test < 40; test++) {
+			console.warn("beginning test " + (test + 1));
+			// Set up the options
+			var options = {
+				n: 4 + test, // Number of symbols
+				k: 3, // Number of non-redundant symbols
+				modulo: 2, // Currently only base 2 is supported
+				randomSeed: Math.random() // Seed randomly
+			};
+			// Make our encoder/decoder
+			var ldpc = new LDPC(options);
+			console.log("made an LDPC with n=" + options.n + " and k=" + options.k);
+			console.log("here's its parity-check matrix: " + ldpc.getParity().toString());
+
+			// Make a random message
+			var message = LDPC.util.getRandomSeries(options.k, options.modulo);
+			console.log("message: " + message.toString());
+
+			// Encode it
+			var encoded = ldpc.encode(message); // First k symbols are the message
+			console.log("encoded (before erasure): " + encoded.toString());
+
+			// Simulate a Binary Erasure Channel that's likely to lose 75% of (n-k) symbols
+			encoded = LDPC.util.map(encoded, function(value, coordinates) {
+				if (Math.random() < ((options.n - options.k) * 0.75) / options.n)
+					return null;
+				else
+					return value;
+			});
+			console.log("encoded (after erasure): " + encoded.toString());
+
+			// Try to decode it
+			var decoded = ldpc.decode(encoded);
+			console.log("after decoding: " + decoded.toString());
+
+			for (var i = 0; i < message.length; i++) {
+				if (message[i] != decoded[i]) {
+					console.error("decoding failed");
+					break;
+				}
+			}
+		}
+		</script>
 	</head>
 	<body>
 		View the developer's console

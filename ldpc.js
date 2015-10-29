@@ -1,247 +1,257 @@
-/**
- * Creates a new Low-Density Parity-Check encoder/decoder
- * @param numSymbols The number of symbols which will be encoded/decoded
- * @param overhead The number of additional symbols used as overhead
- * @param modulo The number space we're working in
- * @param mixing The percent of constraints that factor in each node
- *  (expressed as a number between 0 and 1 / a percentage)
- */
 function LDPC(options) {
-	options = options || {};
-	options.numSymbols = options.numSymbols || 0; // This isn't a useful value, so you'll want to provide your own
-	options.overhead = options.overhead || 0;
-	options.modulo = options.modulo || 2; // Default to base 2
-	options.mixing = options.mixing || 0.1; // Default to 10% mixing
-	options.randomSeed = options.randomSeed || undefined; // Default to current time (see Random class's constructor)
+	options	= options || {};
+	if (typeof options.n == "undefined")
+		options.n = 0;
+	if (typeof options.k == "undefined")
+		option.k = options.n;
+	if (typeof options.modulo == "undefined")
+		options.modulo = 2;
+	if (typeof options.randomSeed == "undefined")
+		options.randomSeed = Date.now();
+
+	var random = new LDPC.Random(options.randomSeed);
+
+	// See https://en.wikipedia.org/wiki/Low-density_parity-check_code
+	//  for explanations of p, -p(transposed), the generator matrix, and
+	//  the parity matrix
+	var p = LDPC.util.make(options.k, options.n - options.k, function() {
+		return Math.floor(random.next() * options.modulo);
+	});
+	var negPT = LDPC.util.fix(LDPC.util.map(LDPC.util.transpose(p), function(value) {
+		return -1 * value;
+	}), options.modulo);
+
+	var generator = LDPC.util.concatColumns(LDPC.util.identity(options.k), p);
+	var parity = LDPC.util.concatColumns(negPT, LDPC.util.identity(options.n - options.k));
+
+	// Wikipedia says that we can check that the row space of G is
+	//  orthogonal to H by doing this:
+	var test = LDPC.util.fix(numeric.dot(generator, LDPC.util.transpose(parity)), options.modulo);
+	// Every element of test should be zero
+	LDPC.util.map(test, function(value) {
+		if (value)
+			throw "The generator and parity matrices don't have orthogonal row spaces";
+	});
 
 	/**
-	 * A constraint defines a series of nodes which must add to zero (within the
-	 * given modulo space)
+	 * Attempts to decode the given encoded message
 	 */
-	function Constraint() {
-		this.nodes = [];
-		this.tryToSatisfy = function() {
-			var total = 0;
-			var singleErasedNode = null;
-			for (var i = this.nodes.length - 1; i >= 0; i--) {
-				var node = this.nodes[i];
-				if (!node.getErased()) {
-					total += node.getValue();
-					total %= options.modulo;
-				} else {
-					if (!singleErasedNode) {
-						singleErasedNode = node;
-					} else {
-						// There's already an erased node, so having another one
-						//  means that we won't be able to deduce the right answer
-						return false;
+	this.decode = function(encoded) {
+		encoded = encoded.slice();
+		var resolvedAtLeastOne = true;
+		while (resolvedAtLeastOne) {
+			resolvedAtLeastOne = false;
+
+			// See if any of the parity constraints can be satisfied
+			parity.forEach(function(constraints) {
+				var missingSymbolIndices = [];
+				var total = 0;
+				for (var i = 0; i < constraints.length; i++) {
+					var constraint = constraints[i];
+					var symbol = encoded[i];
+					if (constraint > 0) {
+						if (symbol < 0 || symbol == null) {
+							// This symbol has been erased / is missing
+							missingSymbolIndices.push(i);
+						}
+						else {
+							// This symbol hasn't been erased
+							total += symbol * constraint;
+						}
 					}
 				}
-			};
-			if (singleErasedNode) {
-				// Only one of our nodes is erased, so we can deduce its value from
-				//  the rest of the nodes (its value must add to the total to make
-				//  it zero)
-				singleErasedNode.setValue((options.modulo - total) % options.modulo);
-				return true; // We've resolved a previously-erased node
-			} else {
-				return total == 0; // This constraint is satisfied
-			}
-		};
-	}
-
-	/**
-	 * nextID returns monotomically-increasing numbers
-	 */
-	var nextID = function() {
-		var lastID = -1;
-		return function() {
-			return ++lastID;
-		};
-	}();
-
-	/**
-	 * A node is just a value and an indication of it being erased or not
-	 */
-	function Node() {
-		var value = 0;
-		this.constraints = [];
-		/**
-		 * Returns true if the value is < 0
-		 */
-		this.getErased = function() {
-			return value < 0;
-		};
-		this.getValue = function() {
-			return value;
-		};
-		/**
-		 * Use newValue < 0 to indicate that it's missing/erased. Returns this
-		 * node
-		 */
-		this.setValue = function(newValue) {
-			value = newValue;
-			return this;
-		};
-	}
-
-	/**
-	 * A simple RNG per http://stackoverflow.com/questions/3062746/special-simple-random-number-generator
-	 * Note this will only generate numbers up to 2^32 - 1
-	 */
-	function Random(seed) {
-		if (typeof seed == "undefined")
-			seed = Date.now(); // Seed with current time if no seed given
-		var a = 1103515245, c = 12345, m = Math.pow(2, 32);
-		/**
-		 * Generates a number between 0 and 1 (with 32-bit precision)
-		 */
-		this.next = function() {
-			seed = (a * seed + c) % m;
-			return seed / m;
-		};
-
-		/**
-		 * Generates a normal number (mean of zero) with given standard
-		 * deviation
-		 */
-		this.nextGaussian = function(standardDeviation) {
-			var u1 = this.next();
-			var u2 = this.next();
-			var randStdNormal = Math.sqrt(-2 * Math.log(u1)) * Math.sin(2 * Math.PI * u2);
-			return standardDeviation * randStdNormal;
-		};
-	}
-
-	/**
-	 * Returns a shuffled set of indices from the given array, sorted
-	 * randomly but in preference of the lesser-used elements of the array.
-	 * arrayUsage is updated with new values. rand is the random number
-	 * generator, and perturbation is the percent to mix up the results
-	 * (ranging from 0 to 1). Perturbation of 1 means there's a 100% chance
-	 * that the result will be out of order
-	 */
-	function sortStocastic(arrayUsage, rand, perturbation) {
-		// Make an array of objects that link index to usage
-		var detailed = [];
-		for (var i = 0; i < arrayUsage.length; i++) {
-			detailed.push({
-				index: i,
-				usage: arrayUsage[i]
+				if (missingSymbolIndices.length == 1) {
+					var missingSymbolIndex = missingSymbolIndices.pop();
+					var constraint = constraints[missingSymbolIndex];
+					// We can figure out this one missing symbol. Its value
+					//  will make the total add up to zero mod
+					//  options.modulo
+					var missingValue = (((-total * constraint) % options.modulo) + options.modulo) % options.modulo;
+					encoded[missingSymbolIndex] = missingValue;
+					resolvedAtLeastOne = true;
+				} else if (missingSymbolIndices.length == 0) {
+					// There are no missing symbols, so let's check that
+					//  that this parity constraint holds true
+					if (total % options.modulo)
+						throw "Total isn't zero in mod options.modulo";
+				}
 			});
 		}
-		detailed = detailed.sort(function(a, b) {
-			return a.usage - b.usage;
-		});
-		// detailed is now sorted from least-used to most-used. Time to mix
-		//  it up
-		for (var i = 0; i < detailed.length - 1; i++) {
-			if (rand.next() < perturbation) {
-				// Swap this element with the next one
-				perturbedIndex = i + 1;
-				var temp = detailed[perturbedIndex];
-				detailed[perturbedIndex] = detailed[i];
-				detailed[i] = temp;
-			}
-		}
-		// Now pull out the list of indices from detailed and return that
-		var retVal = [];
-		for (var i = 0; i < detailed.length; i++) {
-			var detail = detailed[i];
-			retVal.push(detail.index);
-		}
+		var retVal = encoded.slice(0, options.k); // Return the first k symbols
+		retVal.result = encoded; // .result will be the full array of symbols
 		return retVal;
-	}
+	};
 
 	/**
-	 * Hooks a node and constraint together
+	 * Encodes the given message, returning an array options.n symbols
+	 * long
 	 */
-	function link(node, constraint) {
-		node.constraints.push(constraint);
-		constraint.nodes.push(node);
-	}
+	this.encode = function(message) {
+		return LDPC.util.fix(numeric.dot([message], generator), options.modulo)[0];
+	};
 
 	/**
-	 * Returns the given array, shuffled using the given random number generator
+	 * Returns a copy of the parity matrix used by this instance of LDPC
 	 */
-	function shuffle(array, rng) {
-		array = array.slice();
-		for (var i = 0; i < array.length; i++) {
-			var swapIndex = Math.floor(rng.next() * array.length);
-			var temp = array[swapIndex];
-			array[swapIndex] = array[i];
-			array[i] = temp;
-		}
-		return array;
-	}
-
-	// Set up nodes and constraints. This is basically us creating the sparse
-	//  parity check matrix
-	var nodes = [];
-	var constraints = [];
-	var constraintUsage = [];
-	for (var i = 0; i < options.overhead; i++) {
-		constraints.push(new Constraint());
-		constraintUsage.push(0);
-	}
-	for (var i = 0; i < options.numSymbols + options.overhead; i++) {
-		var node = new Node();
-		nodes.push(node);
-	}
-	// Seed the RNG in preparation of linking nodes and constraints
-	var rand = new Random(options.randomSeed);
-	// Note that we don't want all of the constraints to have an even number of
-	//  corresponding nodes.
-	// Note that as we go along, we want to make sure that each constraint has
-	//  about the same number of nodes, so we'll give statistical preference to
-	//  constraints which don't have as many nodes
-	for (var i = 0; i < nodes.length; i++) {
-		var node = nodes[i];
-		var constraintIndices = sortStocastic(constraintUsage, rand, options.mixing);
-		for (var j = constraintIndices.length * options.mixing + rand.nextGaussian(options.mixing); j > 0 && constraintIndices.length > 0; j--) {
-			var constraintIndex = constraintIndices.shift();
-			var constraint = constraints[constraintIndex];
-			link(node, constraint);
-			constraintUsage[constraintIndex]++;
-		}
-	}
-
-	this.decode = function(symbolArray) {
-		if (symbolArray.length != nodes.length) {
-			throw "Wrong number of symbols. This LDPC needs " + nodes.length;
-		}
-
-		// Set the nodes' values
-		for (var i = 0; i < symbolArray.length; i++) {
-			var symbol = symbolArray[i];
-			var node = nodes[i];
-			node.setValue(symbol);
-		}
-
-		// Continue trying to resolve constraints until we've resolved as many as we can
-		var lastNumConstraintsSatisfied = 0;
-		while (true) {
-			var numConstraintsSatisfied = 0;
-			for (var i = 0; i < constraints.length; i++) {
-				var constraint = constraints[i];
-				numConstraintsSatisfied += constraint.tryToSatisfy() ? 1 : 0;
-			}
-			if (numConstraintsSatisfied <= lastNumConstraintsSatisfied)
-				break;
-			lastNumConstraintsSatisfied = numConstraintsSatisfied;
-		}
-
-		// Gather results together to return
-		var result = [];
-		var decoded = true;
-		for (var i = 0; i < nodes.length; i++) {
-			var node = nodes[i];
-			decoded &= !node.getErased();
-			result.push(node.getValue());
-		}
-		return {
-			decoded: decoded ? true : false,
-			result: result
-		};
+	this.getParity = function() {
+		return LDPC.util.deepCopy(parity);
 	};
 }
+
+/**
+ * A simple RNG per http://stackoverflow.com/questions/3062746/special-simple-random-number-generator
+ * Note this will only generate numbers up to 2^32 - 1
+ */
+LDPC.Random = function(seed) {
+	if (typeof seed == "undefined")
+		seed = Date.now(); // Seed with current time if no seed given
+	var a = 1103515245, c = 12345, m = Math.pow(2, 32);
+	/**
+	 * Generates a number between 0 and 1 (with 32-bit precision)
+	 */
+	this.next = function() {
+		seed = (a * seed + c) % m;
+		return seed / m;
+	};
+
+	/**
+	 * Generates a normal number (mean of zero) with given standard
+	 * deviation
+	 */
+	this.nextGaussian = function(standardDeviation) {
+		var u1 = this.next();
+		var u2 = this.next();
+		var randStdNormal = Math.sqrt(-2 * Math.log(u1)) * Math.sin(2 * Math.PI * u2);
+		return standardDeviation * randStdNormal;
+	};
+
+	/**
+	 * http://wiki.q-researchsoftware.com/wiki/How_to_Generate_Random_Numbers:_Poisson_Distribution
+	 */
+	this.nextPoisson = function(lambda) {
+		var L = Math.exp(-lambda);
+		var p = 1.0;
+		var k = 0;
+		do {
+			k++;
+			p *= this.next();
+		} while (p > L);
+		return k - 1;
+	};
+};
+
+// Set up utility functions
+LDPC.util = {};
+
+// Returns the combination of the two given two-dimensional arrays
+LDPC.util.concatColumns = function(array1, array2) {
+	var copy1 = LDPC.util.deepCopy(array1);
+	var copy2 = LDPC.util.deepCopy(array2);
+
+	var concatInner = function(matrix1, matrix2) {
+		while (matrix2.length) {
+			matrix1.push(matrix2.shift());
+		}
+	};
+
+	for (var i = 0; i < copy1.length; i++) {
+		concatInner(copy1[i], copy2[i]);
+	}
+	return copy1;
+};
+
+// Perform a deep copy of all elements
+LDPC.util.deepCopy = function(matrix) {
+	var copy = [];
+	matrix.forEach(function(value, index, object) {
+		if (typeof value == "object") {
+			copy.push(LDPC.util.deepCopy(value));
+		} else {
+			copy.push(value);
+		}
+	});
+	return copy;
+};
+
+// Returns an array in which all the elements are positive and less then
+//  modulo
+LDPC.util.fix = function(array, modulo) {
+	return LDPC.util.map(array, function(value) {
+		return ((Math.round(value) % modulo) + modulo) % modulo; // Ensures positive numbers
+	});
+};
+
+// Generates a random array of numbers between 0 and the given modulo
+LDPC.util.getRandomSeries = function(length, modulo) {
+	var retVal = [];
+	for (var i = 0; i < length; i++) {
+		retVal.push(Math.floor(Math.random() * modulo));
+	}
+	return retVal;
+};
+
+// Generates an identity matrix
+LDPC.util.identity = function(dimension) {
+	return LDPC.util.make(dimension, dimension, function(row, column) {
+		return row == column ? 1 : 0;
+	});
+};
+
+// Returns a two-dimensional array with the given number of rows and
+//  columns. Each value is calculated based on the result of
+//  fn(row, column)
+LDPC.util.make = function(rows, columns, fn) {
+	var array = [];
+	for (var i = 0; i < rows; i++) {
+		var row = [];
+		for (var j = 0; j < columns; j++) {
+			var element = fn(i, j);
+			row.push(element);
+		}
+		array.push(row);
+	}
+	return array;
+};
+
+// Applies a function to each element of the given array (which can be
+//  multi-dimensional), returning this transformed version without
+//  affecting the given array
+LDPC.util.map = function(array, calculate) {
+	// Recursive function for applying the calculation. Note that we
+	//  recurse into nested arrays
+	var mapInner = function(matrix, coordinates, calculate) {
+		coordinates = coordinates || [];
+		matrix.forEach(function(value, index, object) {
+			var newValue;
+			var newCoordinates = coordinates.slice();
+			newCoordinates.push(index);
+			if (typeof value == "object") {
+				newValue = mapInner(value, newCoordinates, calculate);
+			} else {
+				newValue = calculate(value, newCoordinates);
+			}
+			if (typeof newValue != "undefined") {
+				matrix[index] = newValue;
+			}
+		});
+	};
+
+	var copy = LDPC.util.deepCopy(array);
+	mapInner(copy, [], calculate);
+	return copy;
+};
+
+// Returns a transposed copy of the given array
+LDPC.util.transpose = function(array) {
+	var rows = array.length;
+	var columns = array[0].length;
+	var transposed = [];
+	for (var i = 0; i < columns; i++) {
+		var row = [];
+		for (var j = 0; j < rows; j++) {
+			row.push(array[j][i]);
+		}
+		transposed.push(row);
+	}
+	return transposed;
+};
