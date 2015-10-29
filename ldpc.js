@@ -78,6 +78,11 @@ function LDPC(options) {
 			});
 		}
 		var retVal = encoded.slice(0, options.k); // Return the first k symbols
+		// Determine if the result is completely decoded yet; .decoded will indicate that
+		retVal.decoded = true;
+		retVal.forEach(function(value) {
+			retVal.decoded &= value > 0 || value === 0;
+		});
 		retVal.result = encoded; // .result will be the full array of symbols
 		return retVal;
 	};

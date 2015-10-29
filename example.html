@@ -45,12 +45,10 @@
 			// Try to decode it
 			var decoded = ldpc.decode(encoded);
 			console.log("after decoding: " + decoded.toString());
-
-			for (var i = 0; i < message.length; i++) {
-				if (message[i] != decoded[i]) {
-					console.error("decoding failed");
-					break;
-				}
+			if (decoded.decoded) {
+				console.log("decoded successfully");
+			} else {
+				console.error("failed to decode");
 			}
 		}
 		</script>
