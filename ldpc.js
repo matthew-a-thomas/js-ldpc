@@ -26,7 +26,7 @@ function LDPC(options) {
 
 	// Wikipedia says that we can check that the row space of G is
 	//  orthogonal to H by doing this:
-	var test = LDPC.util.fix(numeric.dot(generator, LDPC.util.transpose(parity)), options.modulo);
+	var test = LDPC.util.fix(LDPC.util.multiply(generator, LDPC.util.transpose(parity)), options.modulo);
 	// Every element of test should be zero
 	LDPC.util.map(test, function(value) {
 		if (value)
@@ -92,7 +92,7 @@ function LDPC(options) {
 	 * long
 	 */
 	this.encode = function(message) {
-		return LDPC.util.fix(numeric.dot([message], generator), options.modulo)[0];
+		return LDPC.util.fix(LDPC.util.multiply([message], generator), options.modulo)[0];
 	};
 
 	/**
@@ -244,6 +244,22 @@ LDPC.util.map = function(array, calculate) {
 	var copy = LDPC.util.deepCopy(array);
 	mapInner(copy, [], calculate);
 	return copy;
+};
+
+// http://stackoverflow.com/questions/27205018/multiply-2-matrices-in-javascript
+LDPC.util.multiply = function(matrix1, matrix2) {
+    var result = [];
+    for (var i = 0; i < matrix1.length; i++) {
+        result[i] = [];
+        for (var j = 0; j < matrix2[0].length; j++) {
+            var sum = 0;
+            for (var k = 0; k < matrix1[0].length; k++) {
+                sum += matrix1[i][k] * matrix2[k][j];
+            }
+            result[i][j] = sum;
+        }
+    }
+    return result;
 };
 
 // Returns a transposed copy of the given array
