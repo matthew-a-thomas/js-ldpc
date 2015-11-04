@@ -21,7 +21,7 @@ var ldpc = new LDPC(options);
 * `n` the number of symbols in an encoded message
 * `k` the number of non-redundant symbols (number of symbols in unencoded message)
 * `modulo` e.g. `2` for binary digits, `256` for bytes, etc
-* `randomSeed` value to initialize the random number generator to. Defaults to `Date.now()`
+* `randomSeed` value to which to initialize an internal random number generator, which is used to build the parity-check and generator matrices. Defaults to `Date.now()`
 
 ###Encoding
 ```JavaScript
