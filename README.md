@@ -8,8 +8,9 @@ Robert Gallager's original paper on the topic can be found here: http://www.rle.
 ##Browser support
 Currently this has only been tested in Chrome >= 46
 
-##Example
-See `example.html` and `example2.html` for working examples
+##Examples
+* `example.html` - shows decoding in the face of symbols being lost
+* `example2.html` - shows how many symbols are necessary from an encoded message to successfully decode
 
 ##Documentation
 
