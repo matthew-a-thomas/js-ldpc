@@ -9,7 +9,7 @@ Robert Gallager's original paper on the topic can be found here: http://www.rle.
 Currently this has only been tested in Chrome >= 46
 
 ##Example
-See `example.html` for a working example
+See `example.html` and `example2.html` for working examples
 
 ##Documentation
 
@@ -20,7 +20,7 @@ var ldpc = new LDPC(options);
 `options` is an object that can have these properties:
 * `n` the number of symbols in an encoded message
 * `k` the number of non-redundant symbols (number of symbols in unencoded message)
-* `modulo` currently only base-2 is working. Defaults to 2
+* `modulo` e.g. `2` for binary digits, `256` for bytes, etc
 * `randomSeed` value to initialize the random number generator to. Defaults to `Date.now()`
 
 ###Encoding
