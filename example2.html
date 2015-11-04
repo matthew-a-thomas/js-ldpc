@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script type="text/javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+		<script type="text/javascript" src="ldpc.js"></script>
+		<script type="text/javascript">
+		var options = {
+			n: 20,
+			k: 10,
+			modulo: Math.pow(2, 12),
+			randomSeed: undefined
+		};
+		var results = {};
+		var ldpc = new LDPC(options);
+		var random = new LDPC.Random();
+		var numIterations = 0;
+
+		function update(result) {
+			for (var i = 1; i <= options.n; i++) {
+				result = results[i];
+				result.bar
+					.css("height", result.count * (numIterations ? (options.n / numIterations) : 0) + "em")
+					.text(result.numLostSymbols + " (" + (Math.round(result.count * 10000 / numIterations) / 100) + "%)");
+			}
+		}
+
+		$(document).ready(function() {
+			$("#n").text(options.n);
+			$("#k").text(options.k);
+			$("#mod").text(options.modulo);
+
+			var resultSet = $("#results");
+			for (var i = 0; i <= options.n; i++) {
+				result = results[i] = {
+					td: $("<div>"),
+					bar: $("<div>"),
+					count: 0,
+					numLostSymbols: i
+				};
+				result.td.append(result.bar);
+				resultSet.append(result.td);
+			}
+			update();
+		});
+
+		function go() {
+			numIterations++;
+			var message = LDPC.util.make(1, options.k, function() {return Math.floor(random.next() * options.modulo);})[0];
+			var encoded = ldpc.encode(message);
+			// Start with a completely lost message. We'll add symbols until it decodes correctly
+			var received = LDPC.util.map(encoded, function() {
+				return null;
+			});
+			var symbolArrival = random.nextSet(encoded.length);
+			for (var numSymbolsNeeded = 1; symbolArrival.length; numSymbolsNeeded++) {
+				var symbolIndex = symbolArrival.pop();
+				received[symbolIndex] = encoded[symbolIndex];
+				var decodingResult = ldpc.decode(received);
+				received = decodingResult.all;
+				if (decodingResult.decoded) {
+					var result = results[numSymbolsNeeded];
+					result.count++;
+					update();
+					return;
+				}
+			}
+		}
+
+		/*
+		var message = LDPC.util.make(1, 64, function() {return Math.floor(Math.random() * 256);})[0];
+		console.log(message.toString());
+		var encoded = ldpc.encode(message);
+		console.log(encoded.toString());
+		var decoded = ldpc.decode(encoded);
+		console.log(decoded.toString());
+		*/
+		</script>
+		<style type="text/css">
+		#results {
+			font-size: 0.75em;
+			max-width: 100%;
+		}
+		#results > div {
+			display: inline-block;
+			height: 3em;
+			text-align: left;
+		}
+		#results > div > div {
+			background-color: gray;
+			display: inline-block;
+			text-align: center;
+			vertical-align: bottom;
+			width: 5em;
+		}
+		</style>
+	</head>
+	<body>
+		<h1>Number of symbols necessary for decoding</h1>
+		<input type="button" onclick="setInterval(go, 0)" value="Click to start the test" />
+		<div>
+			N=<span id="n"></span><br/>
+			K=<span id="k"></span><br/>
+			mod=<span id="mod"></span>
+		</div>
+		<div id="results"></div>
+	</body>
+</html>
