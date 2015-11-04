@@ -37,8 +37,8 @@ var result = ldpc.decode(encoded);
 if (result.decoded) {
   // result should have all-positive and non-null numbers
 } else {
-  // result might have more positive numbers than you gave the decode function
-  // Also see result.result, which has all the encoded symbols including any additional which were deduced. Note that the first k symbols are the same as result
+  // You need more symbols. result may have more decoded symbols than you started with, but it's unlikely
+  // Also see result.all, which has all the encoded symbols including any additional which were deduced. Note that the first k symbols are the same as result
 }
 ```
 `encoded` is an array `options.n` in length of numbers that are less than `options.modulo`. Use negative numbers or `null` to indicate a missing symbol (we're targeting an erasure channel)
