@@ -1,6 +1,6 @@
 var getUtil = (function() {
 
-    var cache = {};
+    this.cache = {};
 
     // Returns the combination of the two given two-dimensional arrays
     function concatColumns(array1, array2) {
@@ -74,7 +74,8 @@ var getUtil = (function() {
     			numZeros = 0;
     			// Find the row with the minimum value for this column
     			for (var row = 0; row < numRows; row++) {
-    				if (!reducedRows[row]) { // We don't want to scale a row that has already been reduced, nor do we want to consider it the minimum row
+                    // We don't want to scale a row that has already been reduced, nor do we want to consider it the minimum row
+    				if (!reducedRows[row]) {
     					// Perhaps we can reduce this row to 1 in this column by using a multiplicative inverse
     					var multiplicativeInverseValue = multiplicativeInverse(matrix[row][col], modulo);
     					if (multiplicativeInverseValue) {
@@ -204,9 +205,9 @@ var getUtil = (function() {
 
     // Lazily-computes (and then caches) the multiplicative inverse of a number
     function multiplicativeInverse(x, modulo) {
-		x = mod(x, modulo);
+        x = mod(x, modulo);
 		var inverses;
-		if (!(inverses = this.cache[modulo] || []).length) {
+		if (!(inverses = cache[modulo] || []).length) {
 			for (var i = 1; i < modulo; i++) {
 				if (inverses[i] != null){
 					continue;
@@ -221,7 +222,7 @@ var getUtil = (function() {
 					}
 				}
 			}
-			this.cache[modulo] = inverses;
+			cache[modulo] = inverses;
 		}
 		return inverses[x];
     };

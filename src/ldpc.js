@@ -3,17 +3,17 @@ var getLDPC = (function(options){
 	var getUtility = require('./utility');
 	var getRandomGenerator = require('./randomGenerator');
 
-	options	= options || {};
-	if (typeof options.n == "undefined") {
+	options = options || {};
+	if (typeof options.n === undefined) {
 		options.n = 0;
 	}
-	if (typeof options.k == "undefined") {
+	if (typeof options.k == undefined) {
 		option.k = options.n;
 	}
-	if (typeof options.modulo == "undefined") {
+	if (typeof options.modulo === undefined) {
 		options.modulo = 2;
 	}
-	if (typeof options.randomSeed == "undefined") {
+	if (typeof options.randomSeed === undefined) {
 		options.randomSeed = Date.now();
 	}
 

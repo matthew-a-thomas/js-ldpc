@@ -19,23 +19,16 @@ var testParameters = {
 	}
 };
 
-function RunningAverage() {
-	var sum = 0;
-	var num = 0;
-	this.getAverage = function() {
-		return sum / num;
-	};
-	this.update = function(value) {
-		sum += value;
-		num++;
-		return this.getAverage();
-	};
-}
-
 // Override arrays' toString function for this test
 Array.prototype.toString = function() {
 	return JSON.stringify(this);
 };
+
+// Respond to test reports
+var passed = 0;
+var failed = 0;
+var startTime = 0;
+var numTests = 0;
 
 // An array of functions to execute in the course of testing
 var testSteps = [
@@ -50,40 +43,33 @@ var testSteps = [
 							k: k,
 							modulo: modulo,
 							randomSeed: Math.floor(Math.random() * Math.pow(2, 31))
-						}
+						};
 
 						// Queue up a function to execute this iteration
 						testSteps.push(function(options) {
 							return function() {
-								// Run a test iteration with these options
 								var report = testIteration(options);
-								// Process the test report
-								//processTestReport(report);
-                                console.log(report);
+                                if (report.error) {
+                                    console.error(report);
+                                    throw report.error;
+                                } else {
+                                    if (!report.message.decoded.decoded) {
+                                        failed++;
+                                    } else {
+                                        passed++;
+                                    }
+                                    console.log("Failed: " + failed);
+                                    console.log("Passed: " + passed);
+                                    //console.log(Math.round((passed / (passed + failed)) * 10000) / 100);
+                                }
 							};
-						}(options))
+						}(options));
 					}
 				}
 			}
 		}
 	}
 ];
-
-// Executes tests
-var go = function() {
-	if (testSteps.length > 0) {
-		var fn = testSteps.shift();
-		fn();
-		setTimeout(go, 0); // Go again (asynchronously, so that any other JS events can happen)
-	}
-};
-
-// Respond to test reports
-var passed = 0;
-var failed = 0;
-var startTime = 0;
-var numTests = 0;
-
 
 // Perform a single test
 function testIteration(options) {
@@ -123,7 +109,9 @@ function testIteration(options) {
 		// Simulate erasure channel by nulling some symbols
 		encoded = ldpcUtility.deepCopy(encoded);
 		var lostSymbols = random.nextSet(encoded.length);
-		for (var i = 0; i < options.n - options.k; i++) { // We'll null n-k symbols
+
+        // We'll null n-k symbols
+		for (var i = 0; i < options.n - options.k; i++) {
 			encoded[lostSymbols.pop()] = null;
 		}
 		report.message.erased = encoded;
@@ -136,6 +124,15 @@ function testIteration(options) {
 	} finally {
 		return report;
 	}
-}
+};
+
+// Executes tests
+var go = function() {
+	if (testSteps.length > 0) {
+		var fn = testSteps.shift();
+		fn();
+		setTimeout(go, 0); // Go again (asynchronously, so that any other JS events can happen)
+	}
+};
 
 go();
