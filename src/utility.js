@@ -209,9 +209,7 @@ var getUtil = (function () {
         var inverses;
         if (!(inverses = cache[modulo] || []).length) {
             for (var i = 1; i < modulo; i++) {
-                if (inverses[i] != null) {
-                    continue;
-				} else {
+                if (inverses[i] == null) {
                     for (var multiplier = 1; multiplier < modulo; multiplier++) {
                         if (mod(i * multiplier, modulo) == 1) {
                             // i and multiplier are multiplicative inverses of each other in mod modulo

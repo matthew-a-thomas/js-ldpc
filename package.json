@@ -1,0 +1,36 @@
+{
+  "name": "lpdc",
+  "version": "0.0.1",
+  "description": "Low-density parity-check code implementation.",
+  "author": "Matthew Thomas <me@matthewathomas.com>",
+  "contributors": [
+    {
+      "name": "Jake Prather",
+      "email": "JakeHP@Zoho.com"
+    }
+  ],
+  "scripts": {
+    "start": "node sample.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/matthew-a-thomas/js-ldpc"
+  },
+  "bugs": {
+    "url": "https://github.com/matthew-a-thomas/js-ldpc/issues"
+  },
+  "keywords": [
+    "LDPC",
+    "Low-density",
+    "parity-check",
+    "error correcting",
+    "Low-density parity-check code"
+  ],
+  "preferGlobal": false,
+  "private": true,
+  "license": "MIT",
+  "devDependencies": {
+    "gulp": "^3.9.0",
+    "gulp-jscs": "^3.0.2"
+  }
+}
