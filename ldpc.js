@@ -8,6 +8,8 @@ function LDPC(options) {
 		options.modulo = 2;
 	if (typeof options.randomSeed == "undefined")
 		options.randomSeed = Date.now();
+	if (typeof options.fill == "undefined")
+		options.fill = 0.5;
 
 	var random = new LDPC.Random(options.randomSeed);
 
@@ -21,10 +23,22 @@ function LDPC(options) {
 			invertibleNumbers.push(i);
 	}
 	var p = LDPC.util.make(options.k, options.n - options.k, function(row, column) {
-		if ((row % options.k) == (column % options.k) && column > 0)
-			return 0;
+		if (column == 0 || random.next() < options.fill)
+			return 1;
 		else
-			return random.nextFromChoice(invertibleNumbers);
+			return 0;
+
+		// return (row + column) % options.modulo;
+
+		// if ((row % options.k) == (column % options.k) && column > 0)
+		// 	return 0;
+		// else
+		// 	return LDPC.util.mod(Math.pow(invertibleNumbers[row % invertibleNumbers.length], column), options.modulo);
+
+		// if ((row % options.k) == (column % options.k) && column > 0)
+		// 	return 0;
+		// else
+		// 	return random.nextFromChoice(invertibleNumbers);
 	});
 	var negPT = LDPC.util.map(LDPC.util.transpose(p), function(value) {
 		return LDPC.util.mod(-value, options.modulo);
@@ -33,14 +47,14 @@ function LDPC(options) {
 	var generator = LDPC.util.concatColumns(LDPC.util.identity(options.k), p);
 	var parity = LDPC.util.concatColumns(negPT, LDPC.util.identity(options.n - options.k));
 
-	// Wikipedia says that we can check that the row space of G is
-	//  orthogonal to H by doing this:
-	var test = LDPC.util.multiply(generator, LDPC.util.transpose(parity), options.modulo);
-	// Every element of test should be zero
-	LDPC.util.map(test, function(value) {
-		if (value)
-			throw "The generator and parity matrices don't have orthogonal row spaces";
-	});
+	// // Wikipedia says that we can check that the row space of G is
+	// //  orthogonal to H by doing this:
+	// var test = LDPC.util.multiply(generator, LDPC.util.transpose(parity), options.modulo);
+	// // Every element of test should be zero
+	// LDPC.util.map(test, function(value) {
+	// 	if (value)
+	// 		throw "The generator and parity matrices don't have orthogonal row spaces";
+	// });
 
 	/**
 	 * Attempts to decode the given encoded message. Returns an array of
@@ -125,6 +139,47 @@ function LDPC(options) {
 		return retVal;
 	}
 
+	this.decodeAlternate = function(encoded) {
+		var encoded = LDPC.util.deepCopy(encoded);
+		var madeProgress = false;
+		do {
+			madeProgress = false;
+			parity.forEach(function(parityRow) {
+				var total = 0;
+				var missingElements = [];
+				parityRow.forEach(function(parityElement, index) {
+					var encodedElement = encoded[index];
+					if (parityElement) {
+						if (encodedElement != null && encodedElement >= 0) {
+							total += parityElement * encodedElement;
+						} else {
+							missingElements.push({
+								index: index,
+								parity: parityElement
+							});
+						}
+					}
+				});
+				if (missingElements.length == 1) {
+					var missing = missingElements.pop();
+					encoded[missing.index] = LDPC.util.mod(-total * missing.parity, options.modulo);
+					madeProgress = true;
+				}
+			});
+		} while (madeProgress);
+
+		var retVal = encoded.slice(0, options.k);
+		retVal.decoded = true;
+		retVal.forEach(function(value) {
+			if (value == null || value < 0) {
+				retVal.decoded = false;
+			}
+		})
+		retVal.all = encoded;
+
+		return retVal;
+	};
+
 	/**
 	 * Encodes the given message, returning an array options.n symbols
 	 * long
@@ -156,6 +211,70 @@ LDPC.Random = function(seed) {
 	if (typeof seed == "undefined")
 		seed = Date.now(); // Seed with current time if no seed given
 	var a = 1103515245, c = 12345, m = Math.pow(2, 32);
+
+	/**
+	 * This creates an object which generates random choices according to the
+	 * given discrete probability.
+	 * The discrete probability is an array of relative weights (they don't have
+	 * to sum to "1") for that index being chosen.
+	 * Each element in the given array needs to be an array of objects with
+	 * "value" and "probability" properties
+	 */
+	this.createDiscreteDistributionFunction = function(probabilityArray) {
+		// The following algorithm is inspired by the Alias Method http://keithschwarz.com/darts-dice-coins/
+		// Basically we're turning the weights into a series of weighted coin
+		//  tosses. Then we only have to uniformly choose at random one of those
+		//  coin tosses, then toss a weighted coin to decide between two values
+		var weightedArray = [];
+		// Determine how much to scale the probabilities. We're aiming to make
+		//  them sum to probabilityArray.length
+		var sum = 0;
+		probabilityArray.forEach(function(value) {
+			sum += value.probability;
+		});
+		var scale = probabilityArray.length / sum;
+		probabilityArray.forEach(function(value) {
+			weightedArray.push({
+				value: value.value,
+				probability: value.probability * scale
+			});
+		});
+		// Build the series of weighted coin flips
+		var table = [];
+		while (weightedArray.length > 1) {
+			weightedArray.sort(function(a, b) {
+				return a.probability - b.probability;
+			});
+			var beginning = weightedArray.shift();
+			var end = weightedArray[weightedArray.length - 1];
+			end.probability -= 1 - beginning.probability;
+			table.push({
+				breakPoint: beginning.probability,
+				lessThanValue: beginning.value,
+				greaterThanValue: end.value
+			});
+		}
+		// The last one will always have a weight of 1
+		if (weightedArray.length) {
+			table.push({
+				breakPoint: 1,
+				lessThanValue: weightedArray.pop().value,
+				greaterThanValue: 0
+			});
+		}
+		// Return a function that'll choose from the discrete distribution using
+		//  the table we built
+		var self = this;
+		return function() {
+			var coinFlip = self.nextFromChoice(table); // Which weighted coin should we flip?
+			if (self.next() <= coinFlip.breakPoint) { // Flip the weighted coin
+				return coinFlip.lessThanValue;
+			} else {
+				return coinFlip.greaterThanValue;
+			}
+		};
+	};
+
 	/**
 	 * Generates a number between 0 and 1 (with 32-bit precision)
 	 */

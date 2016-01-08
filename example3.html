@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script type="text/javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+		<script type="text/javascript" src="ldpc.js"></script>
+		<script type="text/javascript">
+		var testOptions = {
+			minFill: 0.5,
+			maxFill: 0.75,
+			numIterations: 10,
+			increment: Math.pow(2, -4)
+		};
+
+		var options = {
+			n: 128,
+			k: 64,
+			modulo: 256
+		};
+
+		$(document).ready(function() {
+			$("#n").text(options.n);
+			$("#k").text(options.k);
+			$("#mod").text(options.modulo);
+		});
+
+		var results = {};
+
+		function go() {
+			for (var fill = testOptions.minFill; fill <= testOptions.maxFill; fill += testOptions.increment) {
+				console.log(fill);
+				options.fill = fill;
+				options.randomSeed = Math.random();
+				var ldpc = new LDPC(options);
+				var random = new LDPC.Random();
+
+				for (var iteration = 0; iteration < testOptions.numIterations; iteration++) {
+					var message = LDPC.util.make(1, options.k, function() {return Math.floor(random.next() * options.modulo);})[0];
+					var encoded = ldpc.encode(message);
+					// Start with a completely lost message. We'll add symbols until it decodes correctly
+					var received = LDPC.util.map(encoded, function() {
+						return null;
+					});
+					var symbolArrival = random.nextSet(encoded.length);
+					for (var numSymbolsNeeded = 1; symbolArrival.length; numSymbolsNeeded++) {
+						var symbolIndex = symbolArrival.pop();
+						received[symbolIndex] = encoded[symbolIndex];
+						var decodingResult = ldpc.decodeAlternate(received);
+						received = decodingResult.all;
+						if (decodingResult.decoded) {
+							results[fill] = results[fill] || 0;
+							results[fill] += 1 / (numSymbolsNeeded - options.k + 1);
+							break;
+						}
+					}
+				}
+			}
+
+			var best = {
+				value: 0,
+				fill: 0
+			};
+			var table = $("<table>");
+			Object.keys(results).sort().forEach(function(fill) {
+				var value = results[fill];
+				if (value > best.value) {
+					best = {
+						value: value,
+						fill: fill
+					};
+				}
+				var tr = $("<tr>");
+				var fill = $("<td>").text(fill);
+				var score = $("<td>").text(Math.round(value * 100) / 100);
+				tr.append(fill);
+				tr.append(score);
+				table.append(tr);
+			});
+			$("#results").empty().append(table);
+
+			console.log(JSON.stringify(best));
+		}
+		</script>
+	</head>
+	<body>
+		<h1>Tunes the "fill" option</h1>
+		<input type="button" onclick="go()" value="Click to start the test" />
+		<div>
+			N=<span id="n"></span><br/>
+			K=<span id="k"></span><br/>
+			mod=<span id="mod"></span>
+		</div>
+		<div id="results"></div>
+	</body>
+</html>

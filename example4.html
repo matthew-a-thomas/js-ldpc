@@ -47,18 +47,16 @@
 			numIterations++;
 			var message = LDPC.util.make(1, options.k, function() {return Math.floor(random.next() * options.modulo);})[0];
 			var encoded = ldpc.encode(message);
-			// Start with a completely lost message. We'll add symbols until it decodes correctly
-			var received = LDPC.util.map(encoded, function() {
-				return null;
-			});
-			var symbolArrival = random.nextSet(encoded.length);
-			for (var numSymbolsNeeded = 1; symbolArrival.length; numSymbolsNeeded++) {
-				var symbolIndex = symbolArrival.pop();
-				received[symbolIndex] = encoded[symbolIndex];
-				var decodingResult = ldpc.decode(received);
-				received = decodingResult.all;
-				if (decodingResult.decoded) {
-					var result = results[numSymbolsNeeded];
+			
+			var erased = LDPC.util.deepCopy(encoded);
+			var symbolErasure = random.nextSet(erased.length);
+			for (var numSymbolsErased = 0; symbolErasure.length; numSymbolsErased++) {
+				var symbolIndex = symbolErasure.pop();
+				erased[symbolIndex] = null;
+
+				var decoded = ldpc.decode(erased);
+				if (!decoded.decoded) {
+					var result = results[numSymbolsErased];
 					result.count++;
 					update();
 					return;
@@ -95,7 +93,7 @@
 		</style>
 	</head>
 	<body>
-		<h1>Number of symbols necessary for decoding</h1>
+		<h1>Number of erasures before breaking</h1>
 		<input type="button" onclick="setInterval(go, 0)" value="Click to start the test" />
 		<div>
 			N=<span id="n"></span><br/>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script type="text/javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+		<script type="text/javascript" src="ldpc.js"></script>
+		<script type="text/javascript">
+		// Simulate the availability of nodes and the resulting total system size
+		function createNode(size, probabilityOfFailure) {
+			return {
+				size: size,
+				probabilityOfFailure: probabilityOfFailure
+			};
+		}
+		var nodes = [
+			// This gets unwieldy past 16 nodes. Perhaps there are optimizations
+			//  that can be performed when the nodes are similar in one/both
+			//  ways?
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5),
+			createNode(1, 0.5)
+		];
+		var confidence = 0.5;
+		var confidentSystemSize = 0;
+
+		// Calculate the discrete probability distribution for all the possible
+		//  system sizes
+		var discreteDistribution = [];
+		{
+			var overall = {};
+			for (var i = Math.pow(2, nodes.length); i > 0; i--) {
+				var bits = (Array(nodes.length + 1).join("0") + i.toString(2)).slice(-nodes.length).split("");
+				var stats = {
+					totalSize: 0,
+					probability: 1
+				};
+				bits.forEach(function(bit, index) {
+					if (bit == "1") {
+						// This node survived
+						stats.totalSize += nodes[index].size;
+						stats.probability *= 1 - nodes[index].probabilityOfFailure;
+					} else {
+						// This node died
+						stats.probability *= nodes[index].probabilityOfFailure;
+					}
+				});
+				overall[stats.totalSize] = overall[stats.totalSize] || 0;
+				overall[stats.totalSize] += stats.probability;
+			}
+			Object.keys(overall).forEach(function(key) {
+				discreteDistribution.push({
+					value: key,
+					probability: overall[key]
+				})
+			});
+			discreteDistribution.sort(function(a, b) {
+				return a.value - b.value;
+			});
+
+			// See what system size corresponds to the given confidence level
+			var tempConfidence = 0;
+			for (var i = discreteDistribution.length - 1; i >= 0; i--) {
+				tempConfidence += discreteDistribution[i].probability;
+				if (tempConfidence >= confidence) {
+					confidentSystemSize = discreteDistribution[i].value;
+					break;
+				}
+			}
+		}
+
+		// Generate system sizes using the discrete probability distribution
+		var r = new LDPC.Random();
+		var f = r.createDiscreteDistributionFunction(discreteDistribution);
+		// This will use the Law of Averages to let you double-check that the
+		//  distribution is producing numbers correctly
+		var counts = {};
+		for (var i = 0; i < 1000; i++) {
+			var choice = f();
+			counts[choice] = counts[choice] || 0;
+			counts[choice]++;
+		}
+
+		console.log(counts);
+		console.log(confidentSystemSize);
+		</script>
+	</head>
+	<body>
+	</body>
+</html>
