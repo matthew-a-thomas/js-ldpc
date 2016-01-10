@@ -10,7 +10,8 @@
     }
   ],
   "scripts": {
-    "start": "node sample.js"
+    "start": "node sample.js",
+    "test": ".\\node_modules\\.bin\\mocha test/**/*.js"
   },
   "repository": {
     "type": "git",
