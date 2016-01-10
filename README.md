@@ -13,5 +13,5 @@ TODO
 * ```npm install```
 * code code code
 * ```gulp lint```
-* ```npm test``` // TODO
+* ```npm test```
 * submit PR

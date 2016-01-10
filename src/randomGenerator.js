@@ -31,8 +31,8 @@ var getRandomGenerator = (function (seed) {
     * deviation
     */
     function nextGaussian(standardDeviation) {
-        var u1 = this.next();
-        var u2 = this.next();
+        var u1 = next();
+        var u2 = next();
         var randStdNormal = Math.sqrt(-2 * Math.log(u1)) * Math.sin(2 * Math.PI * u2);
         return standardDeviation * randStdNormal;
     };
@@ -46,7 +46,7 @@ var getRandomGenerator = (function (seed) {
         var k = 0;
         do {
             k++;
-            p *= this.next();
+            p *= next();
         } while (p > L);
         return k - 1;
     };
@@ -60,7 +60,7 @@ var getRandomGenerator = (function (seed) {
             set.push(i);
         }
         for (var i = 0; i < set.length; i++) {
-            var randomIndex = Math.floor(this.next() * set.length);
+            var randomIndex = Math.floor(next() * set.length);
             var temp = set[i];
             set[i] = set[randomIndex];
             set[randomIndex] = temp;

@@ -10,7 +10,8 @@
     }
   ],
   "scripts": {
-    "start": "node sample.js"
+    "start": "node sample.js",
+    "test": ".\\node_modules\\.bin\\mocha test/**/*.js"
   },
   "repository": {
     "type": "git",
@@ -30,7 +31,9 @@
   "private": true,
   "license": "MIT",
   "devDependencies": {
+    "chai": "^3.4.1",
     "gulp": "^3.9.0",
-    "gulp-jscs": "^3.0.2"
+    "gulp-jscs": "^3.0.2",
+    "mocha": "^2.3.4"
   }
 }
