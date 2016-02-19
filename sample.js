@@ -1,4 +1,4 @@
-var getLDPC = require('./src/ldpc');
+var LDPC = require('./src/ldpc');
 var getUtility = require('./src/utility');
 var getRandomGenerator = require('./src/randomGenerator');
 
@@ -91,7 +91,7 @@ function testIteration(options) {
 
     try {
         // Make our encoder/decoder
-        var ldpc = getLDPC(options);
+        var ldpc = new LDPC(options);
         var ldpcUtility = getUtility();
         var random = getRandomGenerator();
 

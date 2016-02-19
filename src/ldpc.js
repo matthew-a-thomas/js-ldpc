@@ -1,4 +1,4 @@
-var getLDPC = (function (options) {
+var LDPC = (function (options) {
 
     var getUtility = require('./utility');
     var getRandomGenerator = require('./randomGenerator');
@@ -173,4 +173,4 @@ var getLDPC = (function (options) {
     };
 });
 
-module.exports = getLDPC;
+module.exports = LDPC;
