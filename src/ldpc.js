@@ -55,7 +55,7 @@ var LDPC = (function (options) {
     // Every element of test should be zero
     Utility.map(test, function (value) {
         if (value) {
-            throw "The generator and parity matrices don't have orthogonal row spaces";
+            throw new Error("The generator and parity matrices don't have orthogonal row spaces");
         }
     });
 
@@ -68,7 +68,7 @@ var LDPC = (function (options) {
     function decode(encoded) {
         var encoded = Utility.deepCopy(encoded);
         var matrix = [];
-        for (var i = 0; i < parity.length; i++) {
+        for (var i = 0; i < parityMatrix.length; i++) {
             matrix.push([]);
         }
         var sums = [];
@@ -80,18 +80,18 @@ var LDPC = (function (options) {
                 // This symbol is missing. Therefore we need to consider it
                 //  as a variable to solve for
                 variables.push(i);
-                if (variables.length > parity.length) {
+                if (variables.length > parityMatrix.length) {
                     break; // No point in continuing because we won't be able to solve this system of equations completely
                 }
-                for (var j = 0; j < parity.length; j++) {
-                    var parityRow = parity[j];
+                for (var j = 0; j < parityMatrix.length; j++) {
+                    var parityRow = parityMatrix[j];
                     matrix[j].push(parityRow[i]);
                 }
             } else {
                 // This symbol is present, so it should contribute toward
                 //  the sum we're trying to solve for
-                for (var j = 0; j < parity.length; j++) {
-                    var parityRow = parity[j];
+                for (var j = 0; j < parityMatrix.length; j++) {
+                    var parityRow = parityMatrix[j];
                     sums[j] = sums[j] || 0;
                     sums[j] -= symbol * parityRow[i];
                     //sums[j] = mod(sums[j], Options.modulo);
@@ -100,8 +100,8 @@ var LDPC = (function (options) {
         }
 
         // Only continue if we've got a change of solving the system of equations
-        if (variables.length <= parity.length) {
-            for (var j = 0; j < parity.length; j++) {
+        if (variables.length <= parityMatrix.length) {
+            for (var j = 0; j < parityMatrix.length; j++) {
                 // The sums will fill the right-hand column
                 matrix[j].push(sums[j]);
             }
@@ -150,7 +150,7 @@ var LDPC = (function (options) {
     * long
     */
     function encode(message) {
-        return Utility.multiply([message], RandomGenerator, Options.modulo)[0];
+        return Utility.multiply([message], generatorMatrix, Options.modulo)[0];
     };
 
     /**
