@@ -3,7 +3,7 @@ var getRandomGenerator = (function (seed) {
     * A simple RNG per http://stackoverflow.com/questions/3062746/special-simple-random-number-generator
     * Note this will only generate numbers up to 2^32 - 1
     */
-    if (typeof seed === undefined) {
+    if (seed === undefined || seed === null) {
         // Seed with current time if no seed given
         seed = Date.now();
     }
@@ -11,6 +11,7 @@ var getRandomGenerator = (function (seed) {
     var a = 1103515245;
     var c = 12345;
     var m = Math.pow(2, 32);
+
     /**
     * Generates a number between 0 and 1 (with 32-bit precision)
     */
