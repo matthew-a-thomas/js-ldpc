@@ -3,22 +3,22 @@ var LDPC = (function (options) {
     var getUtility = require('./utility');
     var getRandomGenerator = require('./randomGenerator');
 
-    options = options || {};
-    if (typeof options.n === undefined) {
-        options.n = 0;
+    var Options = options || {};
+    if (Options.n === undefined) {
+        Options.n = 0;
     }
-    if (typeof options.k == undefined) {
-        option.k = options.n;
+    if (Options.k === undefined) {
+        Options.k = Options.n;
     }
-    if (typeof options.modulo === undefined) {
-        options.modulo = 2;
+    if (Options.modulo === undefined) {
+        Options.modulo = 2;
     }
-    if (typeof options.randomSeed === undefined) {
-        options.randomSeed = Date.now();
+    if (Options.randomSeed === undefined) {
+        Options.randomSeed = Date.now();
     }
 
-    var utility = getUtility();
-    var random = getRandomGenerator(options.randomSeed);
+    var Utility = getUtility();
+    var RandomGenerator = getRandomGenerator(Options.randomSeed);
 
     /*
       See https://en.wikipedia.org/wiki/Low-density_parity-check_code
@@ -27,43 +27,46 @@ var LDPC = (function (options) {
     */
     var invertibleNumbers = [];
     var i = -1;
-    for (var i = 1; i < options.modulo; i++) {
-        if (utility.multiplicativeInverse(i, options.modulo)) {
+    for (var i = 1; i < Options.modulo; i++) {
+        if (Utility.multiplicativeInverse(i, Options.modulo)) {
             invertibleNumbers.push(i);
         }
     }
-    var p = utility.make(options.k, options.n - options.k, function (row, column) {
-        if ((row % options.k) == (column % options.k) && column > 0) {
+
+    var p = Utility.make(Options.k, Options.n - Options.k, function (row, column) {
+        if ((row % Options.k) == (column % Options.k) && column > 0) {
             return 0;
         } else {
-            return random.nextFromChoice(invertibleNumbers);
+            return RandomGenerator.nextFromChoice(invertibleNumbers);
         }
     });
-    var negPT = utility.map(utility.transpose(p), function (value) {
-        return utility.mod(-value, options.modulo);
+
+    var negPT = Utility.map(Utility.transpose(p), function (value) {
+        return Utility.mod(-value, Options.modulo);
     });
 
-    var generator = utility.concatColumns(utility.identity(options.k), p);
-    var parity = utility.concatColumns(negPT, utility.identity(options.n - options.k));
+    var generatorMatrix = Utility.concatColumns(Utility.identity(Options.k), p);
+    var parityMatrix = Utility.concatColumns(negPT, Utility.identity(Options.n - Options.k));
 
     // Wikipedia says that we can check that the row space of G is
     // orthogonal to H by doing this:
-    var test = utility.multiply(generator, utility.transpose(parity), options.modulo);
+    var test = Utility.multiply(generatorMatrix, Utility.transpose(parityMatrix), Options.modulo);
 
     // Every element of test should be zero
-    utility.map(test, function (value) {
+    Utility.map(test, function (value) {
         if (value) {
             throw "The generator and parity matrices don't have orthogonal row spaces";
         }
     });
+
     /**
     * Attempts to decode the given encoded message. Returns an array of
-    * options.k symbols. The returned array has a "decoded" property that tells
+    * Options.k symbols. The returned array has a "decoded" property that tells
     * if the encoded message was successfully decoded completely (the same as
     * there being no erased symbols in the returned result)
     */
     function decode(encoded) {
-        var encoded = utility.deepCopy(encoded);
+        var encoded = Utility.deepCopy(encoded);
         var matrix = [];
         for (var i = 0; i < parity.length; i++) {
             matrix.push([]);
@@ -91,7 +94,7 @@ var LDPC = (function (options) {
                     var parityRow = parity[j];
                     sums[j] = sums[j] || 0;
                     sums[j] -= symbol * parityRow[i];
-                    //sums[j] = mod(sums[j], options.modulo);
+                    //sums[j] = mod(sums[j], Options.modulo);
                 }
             }
         }
@@ -103,7 +106,7 @@ var LDPC = (function (options) {
                 matrix[j].push(sums[j]);
             }
             // This tries to put the matrix into reduced row-echelon form
-            var reduced = utility.gaussReduction(matrix, options.modulo);
+            var reduced = Utility.gaussReduction(matrix, Options.modulo);
 
             for (var i = 0; i < reduced.length; i++) {
                 var reducedRow = reduced[i];
@@ -130,10 +133,10 @@ var LDPC = (function (options) {
                 }
             }
         }
-        var retVal = encoded.slice(0, options.k);
+        var retVal = encoded.slice(0, Options.k);
         retVal.decoded = true;
         retVal.forEach(function (value) {
-            if (value == null || value < 0) {
+            if (value === null || value < 0) {
                 retVal.decoded = false;
             }
         });
@@ -143,29 +146,29 @@ var LDPC = (function (options) {
     }
 
     /**
-    * Encodes the given message, returning an array options.n symbols
+    * Encodes the given message, returning an array Options.n symbols
     * long
     */
     function encode(message) {
-        return utility.multiply([message], generator, options.modulo)[0];
+        return Utility.multiply([message], RandomGenerator, Options.modulo)[0];
     };
 
     /**
     * Returns a copy of the generator matrix used by this instance of LDPC
     */
     function getGenerator() {
-        return utility.deepCopy(generator);
+        return Utility.deepCopy(generatorMatrix);
     };
 
     /**
     * Returns a copy of the parity matrix used by this instance of LDPC
     */
     function getParity() {
-        return utility.deepCopy(parity);
+        return Utility.deepCopy(parityMatrix);
     };
 
     return {
-        options: options,
+        options: Options,
         decode: decode,
         encode: encode,
         getGenerator: getGenerator,
